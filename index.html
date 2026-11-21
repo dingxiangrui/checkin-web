@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>中转站一键签到</title>
+<style>
+:root{--bg:#0f1117;--panel:#171a23;--panel2:#1e2230;--line:#2a2f40;--text:#e8eaf0;--muted:#9aa1b2;--accent:#4f7cff;--accent2:#6a5cff;--ok:#34b37a;--warn:#d9a514;--fail:#e2564f}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:16px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.ttls h1{font-size:18px;margin:0}
+.sub{color:var(--muted);font-size:11px;margin-top:4px}
+.hbtns{display:flex;gap:8px}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;font-weight:600}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--fail)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.bar{margin:10px 16px 0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:13px}
+.hidden{display:none !important}
+main{flex:1;padding:14px 16px;max-width:720px;width:100%;margin:0 auto}
+.tools{display:flex;justify-content:flex-end;margin-bottom:10px}
+.empty{color:var(--muted);text-align:center;padding:32px 12px;border:1px dashed var(--line);border-radius:12px;font-size:13px;line-height:1.9;margin-bottom:12px}
+.list{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card.off{opacity:.55}
+.cr{display:flex;align-items:center;gap:8px}
+.nm{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid var(--muted);color:var(--muted);white-space:nowrap}
+.badge.ok{color:var(--ok);border-color:var(--ok);background:rgba(52,179,122,.12)}
+.badge.already{color:var(--warn);border-color:var(--warn);background:rgba(217,165,20,.12)}
+.badge.fail,.badge.error{color:var(--fail);border-color:var(--fail);background:rgba(226,86,79,.12)}
+.badge.running{color:var(--accent);border-color:var(--accent);background:rgba(79,124,255,.12)}
+.meta{font-size:11px;color:var(--muted);margin-top:6px;word-break:break-all;line-height:1.7}
+.rst{font-size:12px;margin-top:4px;line-height:1.6}
+details{margin-top:4px}
+summary{cursor:pointer;color:var(--muted);font-size:11px}
+pre{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:11px;overflow:auto;max-height:160px;margin:6px 0 0;white-space:pre-wrap;word-break:break-all}
+.ca{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.ca .btn{padding:8px 12px;font-size:13px}
+.ca .grow{flex:1}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(560px,94vw);max-height:88vh;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{margin:0 0 14px;font-size:16px}
+.fgrp{margin-bottom:12px}
+.fgrp label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:16px;font-family:inherit}
+textarea{resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:14px;padding:4px 11px;font-size:11px;cursor:pointer}
+.frow{display:flex;gap:8px;margin-bottom:12px}
+.half{flex:1}
+.fchk{margin-bottom:12px;font-size:13px}
+.fchk label{display:flex;align-items:center;gap:7px;color:var(--text)}
+.fchk input{width:auto}
+.dlgacts{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.dlgacts .btn{flex:1}
+footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;line-height:1.8;max-width:720px;width:100%;margin:0 auto}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="ttls">
+    <h1>中转站一键签到</h1>
+    <div class="sub">网页版 · 配置只存本机浏览器 · 令牌不出设备</div>
+  </div>
+  <div class="hbtns">
+    <button class="btn" id="btnAdd">＋ 添加</button>
+    <button class="btn primary" id="btnAll">⚡ 一键签到全部</button>
+  </div>
+</header>
+
+<div id="bar" class="bar hidden"></div>
+
+<main>
+  <div class="tools"><button class="btn ghost" id="btnIo">导入 / 导出配置</button></div>
+  <div id="emptyTip" class="empty hidden">
+    还没有站点。两种方式开始：<br>
+    1. 点「＋添加」，填站点地址 + 系统访问令牌（站点个人设置页生成）<br>
+    2. 用电脑版页面的「导出配置」，把文本粘贴到本页「导入 / 导出配置」里一键搬入
+  </div>
+  <div id="list" class="list"></div>
+</main>
+
+<footer>
+  Safari 底部分享按钮 → 「添加到主屏幕」，以后像 App 一样全屏打开。<br>
+  个别站显示「该站禁止跨域」属于站点自身限制，不是页面坏了；令牌认证的站点多数可直接签到。
+</footer>
+
+<dialog id="editDlg">
+  <h2 id="dlgTitle">添加站点</h2>
+  <div class="fgrp"><label>站点名称</label><input id="e-name" placeholder="例如：某某 AI 站"></div>
+  <div class="fgrp"><label>站点地址</label><input id="e-url" placeholder="https://api.example.com"></div>
+  <div class="frow">
+    <div class="half"><label style="font-size:12px;color:var(--muted);margin-bottom:5px;display:block">请求方法</label><select id="e-method"><option>POST</option><option>GET</option></select></div>
+    <div class="half"><label style="font-size:12px;color:var(--muted);margin-bottom:5px;display:block">认证方式</label><select id="e-auth"><option value="bearer">Bearer 令牌</option><option value="token">裸令牌</option><option value="cookie">Cookie（跨域常无效）</option><option value="none">无</option></select></div>
+  </div>
+  <div class="fgrp"><label>签到接口路径</label><input id="e-path" value="/api/user/check_in"><div class="chips" id="e-paths"></div></div>
+  <div class="fgrp"><label>用户 ID（NewAPI 系填，个人设置页可见）</label><input id="e-uid" inputmode="numeric" placeholder="数字，非 NewAPI 可留空"></div>
+  <div class="fgrp"><label>令牌</label><textarea id="e-token" rows="2" placeholder="新建粘贴完整值；编辑时留空 = 不修改"></textarea></div>
+  <div class="fgrp"><label>请求体 JSON（可选，一般留空）</label><textarea id="e-body" rows="2" placeholder="{}"></textarea></div>
+  <div class="fgrp"><label>备注</label><input id="e-note"></div>
+  <div class="fchk"><label><input type="checkbox" id="e-enabled" checked> 启用（参与一键签到全部）</label></div>
+  <div class="dlgacts"><button class="btn ghost" id="e-cancel">取消</button><button class="btn primary" id="e-save">保存</button></div>
+</dialog>
+
+<dialog id="ioDlg">
+  <h2>导入 / 导出配置</h2>
+  <div class="fgrp"><label>导出 = 点「生成导出」；导入 = 把配置 JSON 粘贴到下面再点「应用导入」（含令牌，注意保密）</label>
+  <textarea id="io-io" rows="8" placeholder="生成导出会填入当前全部配置；导入把 JSON 粘贴到这里"></textarea></div>
+  <div class="dlgacts">
+    <button class="btn ghost" id="io-close">关闭</button>
+    <button class="btn" id="io-exp">生成导出</button>
+    <button class="btn primary" id="io-imp">应用导入</button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+
+  // ================= 核心逻辑（与电脑/手机版同源同规则） =================
+
+  var ALREADY_RE = /已签到|已经签到|重复签到|今日已签|打过卡/;
+
+  function joinUrl(baseUrl, reqPath) {
+    var u;
+    try { u = new URL(baseUrl); } catch (e) { return null; }
+    var base = u.pathname.replace(/\/+$/, '');
+    var p = String(reqPath || '');
+    if (!p.startsWith('/')) p = '/' + p;
+    try { return new URL(base + p, u.origin); } catch (e) { return null; }
+  }
+
+  function buildHeaders(site) {
+    var headers = {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'zh-CN,zh;q=0.9'
+    };
+    var extra = site.extraHeaders;
+    if (extra && typeof extra === 'object') {
+      for (var k in extra) headers[k] = extra[k];
+    }
+    var token = site.token || '';
+    switch (site.authType) {
+      case 'bearer': headers['Authorization'] = 'Bearer ' + token; break;
+      case 'token': headers['Authorization'] = token; break;
+      case 'cookie': headers['Cookie'] = token; break;
+      default: break;
+    }
+    if (site.userId) headers['New-Api-User'] = String(site.userId);
+    return headers;
+  }
+
+  function parseResponse(status, text) {
+    text = text || '';
+    var parsed = null;
+    try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+    if (parsed && typeof parsed === 'object') {
+      var success = parsed.success === undefined
+        ? status >= 200 && status < 300
+        : !!parsed.success;
+      var msg = String(parsed.message || parsed.msg || '');
+      var already = ALREADY_RE.test(msg);
+      if (already) {
+        return { ok: true, level: 'already', message: msg || '今日已签到', data: parsed };
+      }
+      if (success) {
+        return { ok: true, level: 'ok', message: msg || '签到成功', data: parsed };
+      }
+      return { ok: false, level: 'fail', message: msg || ('签到失败 (HTTP ' + status + ')'), data: parsed };
+    }
+    var httpOk = status >= 200 && status < 300;
+    return {
+      ok: httpOk,
+      level: httpOk ? 'ok' : 'fail',
+      message: httpOk ? 'HTTP ' + status + '（非 JSON 响应，按状态码视为成功）' : 'HTTP ' + status,
+      rawPreview: text ? text.slice(0, 300) : ''
+    };
+  }
+
+  async function runCheckin(site) {
+    var url = joinUrl(site.baseUrl, site.path);
+    var base = { name: site.name, siteId: site.id, time: new Date().toISOString() };
+    if (!url) {
+      return Object.assign(base, { ok: false, level: 'error', message: '站点地址或接口路径无效' });
+    }
+    var method = site.method === 'GET' ? 'GET' : 'POST';
+    var headers = buildHeaders(site);
+    var body = null;
+    if (method !== 'GET') {
+      body = site.body && String(site.body).trim() ? String(site.body) : '{}';
+      headers['Content-Type'] = 'application/json';
+    }
+    var t0 = Date.now();
+    var resp;
+    try {
+      resp = await fetch(url.toString(), { method: method, headers: headers, body: body });
+    } catch (e) {
+      return Object.assign(base, {
+        ok: false,
+        level: 'error',
+        message: '请求发不出去：多半是该站禁止跨域(CORS)或网络不通 —— ' + (e && e.message ? e.message : e),
+        ms: Date.now() - t0
+      });
+    }
+    var text = '';
+    try { text = await resp.text(); } catch (e) { text = ''; }
+    var res = parseResponse(resp.status, text);
+    res.ms = Date.now() - t0;
+    res.time = base.time;
+    res.name = site.name;
+    res.siteId = site.id;
+    return res;
+  }
+
+  // ================= Node 测试模式（浏览器不会走到） =================
+  if (typeof document === 'undefined') {
+    if (typeof module !== 'undefined' && module.exports) {
+      module.exports = {
+        joinUrl: joinUrl,
+        buildHeaders: buildHeaders,
+        parseResponse: parseResponse,
+        runCheckin: runCheckin
+      };
+    }
+    return;
+  }
+
+  // ================= UI =================
+
+  var KEY_SITES = 'checkin_sites';
+  var KEY_RESULTS = 'checkin_results';
+
+  var COMMON_PATHS = [
+    '/api/user/check_in', '/api/user/clock_in',
+    '/api/user/sign_in', '/api/user/checkin', '/api/check_in'
+  ];
+  var LEVEL_TEXT = {
+    ok: '签到成功', already: '今日已签', fail: '失败',
+    error: '出错', pending: '未签到', running: '签到中'
+  };
+
+  var sites = [];
+  var results = {};
+  var editingId = null;
+  var busyAll = false;
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try { return crypto.randomUUID(); } catch (e) {}
+    }
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function fmtLocalTime(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso);
+      var p = function (n) { return String(n).padStart(2, '0'); };
+      return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    } catch (e) { return iso; }
+  }
+
+  // ---------- 存储 ----------
+  function loadAll() {
+    try { sites = JSON.parse(localStorage.getItem(KEY_SITES)) || []; } catch (e) { sites = []; }
+    if (!Array.isArray(sites)) sites = [];
+    try { results = JSON.parse(localStorage.getItem(KEY_RESULTS)) || {}; } catch (e) { results = {}; }
+    if (!results || typeof results !== 'object') results = {};
+  }
+  function saveSitesNow() { localStorage.setItem(KEY_SITES, JSON.stringify(sites)); }
+  function saveResultsNow() { localStorage.setItem(KEY_RESULTS, JSON.stringify(results)); }
+
+  // ---------- 渲染 ----------
+  function badgeHtml(level) {
+    var cls = level === 'running' ? 'running' : (level || 'pending');
+    return '<span class="badge ' + esc(cls) + '">' + esc(LEVEL_TEXT[level] || level) + '</span>';
+  }
+
+  function authLabel(s) {
+    var map = { bearer: 'Bearer令牌', token: '裸令牌', cookie: 'Cookie', none: '无' };
+    var t = map[s.authType] || s.authType;
+    if (s.authType && s.authType !== 'none' && !s.token) t += '（未填令牌！）';
+    if (s.userId) t += ' · 用户ID ' + s.userId;
+    return t;
+  }
+
+  function cardHtml(s) {
+    var r = results[s.id] || null;
+    var level = s._level || (r ? r.level : 'pending');
+    var raw = r && r.raw ? r.raw : '';
+    var meta = esc((s.method || 'POST') + ' ' + s.baseUrl + s.path) +
+      '<br>认证: ' + esc(authLabel(s)) +
+      (r && r.time ? '<br>上次: ' + esc(fmtLocalTime(r.time)) : '');
+    var rst = r ? '<div class="rst">' + esc(r.message || '') +
+      (r.ms != null ? ' <span style="color:var(--muted)">· ' + esc(r.ms) + 'ms</span>' : '') + '</div>' : '';
+    var det = raw ? '<details><summary>原始响应</summary><pre>' + esc(raw) + '</pre></details>' : '';
+    return '<div class="card' + (s.enabled ? '' : ' off') + '" data-id="' + esc(s.id) + '">' +
+      '<div class="cr"><span class="nm">' + esc(s.name) + '</span>' + badgeHtml(level) + '</div>' +
+      '<div class="meta">' + meta + '</div>' + rst + det +
+      '<div class="ca">' +
+      '<button class="btn primary grow" data-act="ck">签到</button>' +
+      '<button class="btn" data-act="ed">编辑</button>' +
+      '<button class="btn danger" data-act="rm">删</button>' +
+      '</div></div>';
+  }
+
+  function render() {
+    $('emptyTip').classList.toggle('hidden', sites.length > 0);
+    $('list').innerHTML = sites.map(cardHtml).join('');
+  }
+
+  function barMsg(msg) {
+    var b = $('bar');
+    b.textContent = msg;
+    b.classList.remove('hidden');
+  }
+
+  // ---------- 签到 ----------
+  async function doCheckin(s) {
+    if (s._level === 'running') return null;
+    s._level = 'running';
+    render();
+    var res = await runCheckin(s);
+    s._level = res.level;
+    results[s.id] = {
+      time: res.time, level: res.level, ok: res.ok, message: res.message,
+      ms: res.ms != null ? res.ms : null,
+      raw: res.data ? JSON.stringify(res.data).slice(0, 500) : (res.rawPreview || '')
+    };
+    saveResultsNow();
+    render();
+    return res;
+  }
+
+  async function checkinAll() {
+    if (busyAll) return;
+    var targets = sites.filter(function (s) { return s.enabled; });
+    if (targets.length === 0) { barMsg('没有启用的站点，先添加或编辑启用'); return; }
+    busyAll = true;
+    $('btnAll').disabled = true;
+    var done = 0, c = { ok: 0, already: 0, fail: 0 };
+    barMsg('一键签到进行中 0/' + targets.length + ' …');
+    await Promise.all(targets.map(async function (s) {
+      var res = await doCheckin(s);
+      if (!res) return;
+      if (res.level === 'ok') c.ok++;
+      else if (res.level === 'already') c.already++;
+      else c.fail++;
+      done++;
+      barMsg('一键签到进行中 ' + done + '/' + targets.length +
+        ' —— 成功 ' + c.ok + ' · 已签 ' + c.already + ' · 失败 ' + c.fail);
+    }));
+    barMsg('全部完成 —— 签到成功 ' + c.ok + ' · 今日已签 ' + c.already + ' · 失败 ' + c.fail);
+    busyAll = false;
+    $('btnAll').disabled = false;
+  }
+
+  // ---------- 编辑 ----------
+  function openEdit(s) {
+    editingId = s ? s.id : null;
+    $('dlgTitle').textContent = s ? ('编辑站点 - ' + s.name) : '添加站点';
+    $('e-name').value = s ? s.name : '';
+    $('e-url').value = s ? s.baseUrl : '';
+    $('e-method').value = s && s.method === 'GET' ? 'GET' : 'POST';
+    $('e-path').value = s ? s.path : '/api/user/check_in';
+    $('e-auth').value = s ? (s.authType || 'bearer') : 'bearer';
+    $('e-uid').value = s ? (s.userId || '') : '';
+    $('e-token').value = '';
+    $('e-token').placeholder = s && s.token ? '已保存令牌，留空 = 不修改' : '粘贴完整令牌';
+    $('e-body').value = s ? (s.body || '') : '';
+    $('e-note').value = s ? (s.note || '') : '';
+    $('e-enabled').checked = s ? s.enabled !== false : true;
+    $('editDlg').showModal();
+  }
+
+  function submitEdit() {
+    var name = $('e-name').value.trim();
+    var baseUrl = $('e-url').value.trim();
+    if (!name || !baseUrl) { barMsg('站点名称和地址必填'); return; }
+    if (!/^https?:\/\//i.test(baseUrl)) { barMsg('站点地址要以 http:// 或 https:// 开头'); return; }
+    var body = $('e-body').value.trim();
+    if (body) {
+      try { JSON.parse(body); } catch (e) { barMsg('请求体不是合法 JSON'); return; }
+    }
+    var old = editingId ? sites.find(function (x) { return x.id === editingId; }) : null;
+    var tokenInput = $('e-token').value.trim();
+    var site = {
+      id: editingId || uuid(),
+      name: name,
+      baseUrl: baseUrl,
+      method: $('e-method').value === 'GET' ? 'GET' : 'POST',
+      path: $('e-path').value.trim() || '/api/user/check_in',
+      authType: $('e-auth').value,
+      userId: $('e-uid').value.trim(),
+      body: body,
+      note: $('e-note').value.trim(),
+      enabled: $('e-enabled').checked,
+      token: tokenInput || (old ? old.token : '')
+    };
+    var idx = sites.findIndex(function (x) { return x.id === site.id; });
+    if (idx >= 0) sites[idx] = site; else sites.push(site);
+    editingId = null;
+    saveSitesNow();
+    render();
+    $('editDlg').close();
+    barMsg('已保存「' + name + '」');
+  }
+
+  // ---------- 导入导出 ----------
+  function doExport() {
+    $('io-io').value = JSON.stringify({ sites: sites }, null, 2);
+    $('io-io').focus();
+    $('io-io').select();
+    barMsg('已生成导出文本（含令牌，注意保密）');
+  }
+
+  function doImport() {
+    var text = $('io-io').value.trim();
+    if (!text) { barMsg('先把配置 JSON 粘贴到文本框'); return; }
+    var obj;
+    try { obj = JSON.parse(text); } catch (e) { barMsg('不是合法 JSON'); return; }
+    var arr = Array.isArray(obj) ? obj : (obj && Array.isArray(obj.sites) ? obj.sites : null);
+    if (!arr) { barMsg('格式应为 {"sites":[...]} 或直接是数组'); return; }
+    sites = arr.map(function (s) {
+      return {
+        id: s.id || uuid(),
+        name: String(s.name || '未命名'),
+        baseUrl: String(s.baseUrl || ''),
+        method: s.method === 'GET' ? 'GET' : 'POST',
+        path: String(s.path || '/api/user/check_in'),
+        authType: ['bearer', 'token', 'cookie', 'none'].indexOf(s.authType) >= 0 ? s.authType : 'none',
+        userId: String(s.userId || ''),
+        body: String(s.body || ''),
+        note: String(s.note || ''),
+        enabled: s.enabled !== false,
+        token: String(s.token || ''),
+        extraHeaders: s.extraHeaders || undefined
+      };
+    });
+    saveSitesNow();
+    render();
+    $('ioDlg').close();
+    barMsg('已导入 ' + sites.length + ' 个站点');
+  }
+
+  // ---------- 事件 ----------
+  $('e-paths').innerHTML = COMMON_PATHS.map(function (p) {
+    return '<button class="chip" data-path="' + esc(p) + '">' + esc(p.split('/').pop()) + '</button>';
+  }).join('');
+
+  $('list').addEventListener('click', function (ev) {
+    var n = ev.target.closest('[data-act]');
+    if (!n) return;
+    var card = n.closest('.card');
+    if (!card) return;
+    var id = card.getAttribute('data-id');
+    var s = sites.find(function (x) { return x.id === id; });
+    if (!s) return;
+    var act = n.getAttribute('data-act');
+    if (act === 'ck') { doCheckin(s); }
+    else if (act === 'ed') { openEdit(s); }
+    else if (act === 'rm') {
+      if (!confirm('删除站点「' + s.name + '」？令牌会一起删掉。')) return;
+      sites = sites.filter(function (x) { return x.id !== id; });
+      delete results[id];
+      saveSitesNow();
+      saveResultsNow();
+      render();
+    }
+  });
+
+  $('e-paths').addEventListener('click', function (ev) {
+    var n = ev.target.closest('[data-path]');
+    if (n) $('e-path').value = n.getAttribute('data-path');
+  });
+
+  $('btnAll').addEventListener('click', checkinAll);
+  $('btnAdd').addEventListener('click', function () { openEdit(null); });
+  $('e-cancel').addEventListener('click', function () { $('editDlg').close(); });
+  $('e-save').addEventListener('click', submitEdit);
+
+  $('btnIo').addEventListener('click', function () {
+    $('io-io').value = '';
+    $('ioDlg').showModal();
+  });
+  $('io-close').addEventListener('click', function () { $('ioDlg').close(); });
+  $('io-exp').addEventListener('click', doExport);
+  $('io-imp').addEventListener('click', doImport);
+
+  loadAll();
+  render();
+})();
+</script>
+</body>
+</html>
